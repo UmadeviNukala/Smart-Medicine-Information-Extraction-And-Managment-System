@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: url('https://static.vecteezy.com/system/resources/thumbnails/043/989/491/small_2x/drugs-and-pills-video.jpg') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95); /* Increased opacity to 95% */
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 0 auto;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h3, p {
+            color: #333; /* Darker text color for better contrast */
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            font-weight: bold; /* Make the heading bolder */
+        }
+
+        .results {
+            text-align: left;
+            color: #444; /* Slightly darker text for better readability */
+        }
+
+        select, button {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .loader {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Chatbot Styles */
+        .chatbot-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .chatbot-popup {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 300px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chatbot-popup.active {
+            display: flex;
+        }
+
+        .chatbot-header {
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .chatbot-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        .chatbot-body .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .chatbot-body .user {
+            background: #e1f5fe;
+            color: #000;
+            margin-left: auto;
+        }
+
+        .chatbot-body .bot {
+            background: #f5f5f5;
+            color: #000;
+            margin-right: auto;
+        }
+
+        .chatbot-footer {
+            display: flex;
+            padding: 10px;
+            background: white;
+        }
+
+        .chatbot-footer input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-right: 10px;
+            outline: none;
+        }
+
+        .chatbot-footer button {
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QR Code Result</h1>
+        <div class="results" id="results-section">
+            <h3>Medicine Details</h3>
+            <div id="medicine-details">
+                {% for key, value in data.items() %}
+                    <p><b>{{ key.replace('_', ' ').upper() }}:</b> {{ value }}</p>
+                {% endfor %}
+            </div>
+            <p id="product-description">{{ description }}</p>
+        </div>
+        <select id="language-select">
+            <option value="en">English</option>
+            <option value="te">Telugu</option>
+            <option value="hi">Hindi</option>
+        </select>
+        <button id="speak-btn">Speak Description</button>
+    </div>
+
+    <!-- Chatbot Icon -->
+    <div class="chatbot-icon" id="chatbot-icon">
+        💬
+    </div>
+
+    <!-- Chatbot Popup -->
+    <div class="chatbot-popup" id="chatbot-popup">
+        <div class="chatbot-header">
+            Chatbot
+        </div>
+        <div class="chatbot-body" id="chatbot-body">
+            <!-- Chat messages will appear here -->
+        </div>
+        <div class="chatbot-footer">
+            <input type="text" id="chat-input" placeholder="Type a message...">
+            <button id="mic-btn">🎤</button>
+            <button id="send-btn">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "AIzaSyDM2f7EoQ4-MlTyt-cxNITUMWrZxE9aoZ8"; // Replace with your Gemini API key
+
+        const medicineDetails = document.getElementById('medicine-details');
+        const productDescription = document.getElementById('product-description');
+        const languageSelect = document.getElementById('language-select');
+        const speakBtn = document.getElementById('speak-btn');
+        const chatbotIcon = document.getElementById('chatbot-icon');
+        const chatbotPopup = document.getElementById('chatbot-popup');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const micBtn = document.getElementById('mic-btn');
+        const chatbotBody = document.getElementById('chatbot-body');
+
+        // Automatically speak the response in English on page load
+        window.onload = () => {
+            const description = productDescription.textContent;
+            if (description) {
+                speakText(description, 'en');
+            }
+        };
+
+        // Speak description in selected language
+        speakBtn.addEventListener('click', async () => {
+            const description = productDescription.textContent;
+            const language = languageSelect.value;
+
+            if (!description) {
+                alert('No description available to speak.');
+                return;
+            }
+
+            // Translate and speak the description using gTTS
+            const audioFile = await translateAndGenerateAudio(description, language);
+            playAudio(audioFile);
+        });
+
+        // Speak text using Web Speech API (for English only)
+        function speakText(text, lang) {
+            if (lang === 'en') {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang;
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Translate text and generate audio using gTTS
+        async function translateAndGenerateAudio(text, lang) {
+            const response = await fetch('/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text, lang }),
+            });
+
+            const data = await response.json();
+            return data.audioFile;
+        }
+
+        // Play audio file
+        function playAudio(audioFile) {
+            const audio = new Audio(audioFile);
+            audio.play();
+        }
+
+        // Chatbot Toggle
+        chatbotIcon.addEventListener('click', () => {
+            chatbotPopup.classList.toggle('active');
+        });
+
+        // Send Message in Chatbot
+        sendBtn.addEventListener('click', async () => {
+            const message = chatInput.value.trim();
+            if (message) {
+                addMessageToChat('user', message);
+                chatInput.value = '';
+
+                try {
+                    const botResponse = await getBotResponse(message);
+                    addMessageToChat('bot', botResponse);
+                    speakText(botResponse, 'en'); // Speak the bot's response in English
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessageToChat('bot', 'Sorry, I am unable to respond at the moment.');
+                }
+            }
+        });
+
+        // Add Message to Chat
+        function addMessageToChat(sender, message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', sender);
+            messageElement.textContent = message;
+            chatbotBody.appendChild(messageElement);
+            chatbotBody.scrollTop = chatbotBody.scrollHeight; // Scroll to bottom
+        }
+
+        // Get Bot Response from Gemini API
+        async function getBotResponse(userInput) {
+            const prompt = `You are a helpful assistant. Respond to the following user input in a conversational and informative manner: '${userInput}'`;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.candidates && data.candidates.length > 0) {
+                return data.candidates[0].content.parts[0].text.trim();
+            } else {
+                throw new Error('No response from the chatbot.');
+            }
+        }
+
+        // Enable Voice Input
+        micBtn.addEventListener('click', () => {
+            if ('webkitSpeechRecognition' in window) {
+                const recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    chatInput.value = transcript;
+                    sendBtn.click(); // Automatically send the recognized text
+                };
+
+                recognition.start();
+            } else {
+                alert('Speech recognition not supported in this browser.');
+            }
+        });
+    </script>
+</body>
+</html>
